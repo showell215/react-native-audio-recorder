@@ -1,56 +1,20 @@
-import React, { useState, useEffect } from "react";
-import { StyleSheet, Text, View } from "react-native";
-import { Audio } from "expo-av";
-
+import React from "react";
+import { NavigationContainer } from "@react-navigation/native";
+import { createStackNavigator } from "@react-navigation/stack";
 import AudioRecord from "./components/AudioRecord";
+import Recordings from "./components/Recordings";
+import HomeScreen from "./components/Home";
+
+const Stack = createStackNavigator();
 
 export default function App() {
-  const [isRecordingPermitted, setRecordingPermissions] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isError, setIsError] = useState(false);
-
-  useEffect(() => {
-    setIsLoading(true);
-    askForPermissions()
-      .then(() => setIsLoading(false))
-      .catch(() => setIsError(true));
-  }, []);
-
-  const askForPermissions = async () => {
-    let response = {};
-
-    try {
-      response = await Audio.requestPermissionsAsync();
-      console.log("got permissions", response);
-    } catch (err) {
-      console.error(err);
-    }
-
-    setRecordingPermissions(response.status === "granted");
-  };
-
-  return !isError ? (
-    <View style={{ ...styles.container, opacity: isLoading ? 0.2 : 1.0 }}>
-      {isRecordingPermitted ? (
-        <AudioRecord />
-      ) : (
-        <Text>
-          You must enable audio recording permissions in order to use this app.
-        </Text>
-      )}
-    </View>
-  ) : (
-    <View>
-      <Text>ERROR</Text>
-    </View>
+  return (
+    <NavigationContainer>
+      <Stack.Navigator>
+        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="RecordAudio" component={AudioRecord} />
+        <Stack.Screen name="PlaybackAudio" component={Recordings} />
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-});

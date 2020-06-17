@@ -1,11 +1,21 @@
 import React, { useState, useRef } from "react";
-import { Text, View, Button } from "react-native";
+import { Text, View, StyleSheet } from "react-native";
 import { Audio } from "expo-av";
-import { getInfoAsync as fsGetInfoAsync } from "expo-file-system";
-
+// import { Ionicons } from "@expo/vector-icons";
+import { Fontisto } from "@expo/vector-icons";
+import {
+  getInfoAsync as fsGetInfoAsync,
+  documentDirectory,
+  cacheDirectory,
+  readDirectoryAsync as fsReadDirectoryAsync,
+  makeDirectoryAsync,
+  copyAsync,
+} from "expo-file-system";
+import sharedStyles from "../styles/shared";
+import { DIR_RECORDINGS } from "react-native-config";
 //Audio.getPermissionsAsync() /
 
-export default function App() {
+export default function RecordAudio({ navigation }) {
   const currentRecording = useRef(null);
   const currentSound = useRef(null);
 
@@ -14,6 +24,7 @@ export default function App() {
   const [isPlaybackAllowed, setIsPlaybackAllowed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
+  const [playbackDuration, setPlaybackDuration] = useState(0);
 
   const onRecordPressed = () => {
     setIsLoading(true);
@@ -74,6 +85,23 @@ export default function App() {
     }
     const info = await fsGetInfoAsync(currentRecording.current.getURI());
     console.log(`FILE INFO: ${JSON.stringify(info)}`);
+    console.log("Document Dir: " + documentDirectory);
+    console.log("Document Dir: " + cacheDirectory);
+
+    try {
+      await makeDirectoryAsync(documentDirectory + "my-recordings", {
+        intermediates: true,
+      });
+      await copyAsync({
+        from: info.uri,
+        to: `${documentDirectory}/my-recordings/recording-${Date.now()}.caf`,
+      });
+      console.log(
+        await fsReadDirectoryAsync(documentDirectory + "my-recordings")
+      );
+    } catch (err) {
+      console.error(err);
+    }
     await Audio.setAudioModeAsync({
       allowsRecordingIOS: false,
       interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX,
@@ -89,11 +117,25 @@ export default function App() {
       status,
     } = await currentRecording.current.createNewLoadedSoundAsync(
       {},
-      this._updateScreenForSoundStatus
+      updateScreenForSoundStatus
     );
     currentSound.current = sound;
     setIsLoading(false);
     setIsPlaybackAllowed(true);
+  };
+
+  const updateScreenForSoundStatus = (status) => {
+    if (status.isPlaying) {
+      setIsPlaying(true);
+      setPlaybackDuration(status.positionMillis);
+    } else {
+      setIsPlaying(false);
+
+      if (status.didJustFinish) {
+        // seek back to 0
+        currentSound.current.setPositionAsync(0);
+      }
+    }
   };
 
   const updateScreenForRecordingStatus = (status) => {
@@ -136,27 +178,59 @@ export default function App() {
   };
 
   return (
-    <View style={{ opacity: isLoading ? 0.2 : 1.0 }}>
-      {!isRecording && <Text>Record some audio</Text>}
-      {isRecording && (
-        <>
-          <Text>Recording!</Text>
-          <Text>Duration: {getFormattedTimeFromMillis(recordingDuration)}</Text>
-        </>
+    <View style={{ ...sharedStyles.container, opacity: isLoading ? 0.2 : 1.0 }}>
+      <View style={{ ...styles.row, paddingBottom: 20 }}>
+        {isRecording && (
+          <>
+            <Fontisto
+              name={"stop"}
+              onPress={onRecordPressed}
+              size={24}
+              color="red"
+              accessibilityLabel="Stop record audio button"
+            />
+            <Text>
+              Duration: {getFormattedTimeFromMillis(recordingDuration)}
+            </Text>
+          </>
+        )}
+        {!isRecording && (
+          <>
+            <Fontisto
+              style={{ marginRight: 15 }}
+              name={"record"}
+              onPress={onRecordPressed}
+              size={24}
+              color="red"
+              accessibilityLabel="Record audio button"
+            />
+            <Text>Record some audio</Text>
+          </>
+        )}
+      </View>
+      {isPlaybackAllowed && !isLoading && currentSound.current && (
+        <View style={{ ...styles.row }}>
+          <Fontisto
+            style={{ marginRight: 15 }}
+            name={isPlaying ? "pause" : "play"}
+            onPress={onPlayPausePressed}
+            size={24}
+            color="black"
+            accessibilityLabel="Playback recorded audio button"
+          />
+          <Text>Play back your audio</Text>
+        </View>
       )}
-      <Button
-        onPress={onRecordPressed}
-        title="Record audio"
-        color="#841584"
-        accessibilityLabel="Record audio button"
-      />
-      <Button
-        disabled={!isPlaybackAllowed || isLoading || !currentSound.current}
-        onPress={onPlayPausePressed}
-        title="Playback recorded audio"
-        color="#841584"
-        accessibilityLabel="Playback recordedaudio button"
-      />
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  row: {
+    width: "100%",
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-start",
+  },
+});
