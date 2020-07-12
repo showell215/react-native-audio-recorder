@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { Text, View, StyleSheet } from "react-native";
+import { Text, View, StyleSheet, Button } from "react-native";
 import { Audio } from "expo-av";
 // import { Ionicons } from "@expo/vector-icons";
 import { Fontisto } from "@expo/vector-icons";
@@ -83,25 +83,7 @@ export default function RecordAudio({ navigation }) {
     } catch (error) {
       // Do nothing -- we are already unloaded.
     }
-    const info = await fsGetInfoAsync(currentRecording.current.getURI());
-    console.log(`FILE INFO: ${JSON.stringify(info)}`);
-    console.log("Document Dir: " + documentDirectory);
-    console.log("Document Dir: " + cacheDirectory);
 
-    try {
-      await makeDirectoryAsync(documentDirectory + "my-recordings", {
-        intermediates: true,
-      });
-      await copyAsync({
-        from: info.uri,
-        to: `${documentDirectory}/my-recordings/recording-${Date.now()}.caf`,
-      });
-      console.log(
-        await fsReadDirectoryAsync(documentDirectory + "my-recordings")
-      );
-    } catch (err) {
-      console.error(err);
-    }
     await Audio.setAudioModeAsync({
       allowsRecordingIOS: false,
       interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX,
@@ -124,6 +106,22 @@ export default function RecordAudio({ navigation }) {
     setIsPlaybackAllowed(true);
   };
 
+  const saveRecordingToDisk = async () => {
+    const fileInfo = await fsGetInfoAsync(currentRecording.current.getURI());
+
+    try {
+      await makeDirectoryAsync(documentDirectory + "my-recordings", {
+        intermediates: true,
+      });
+      // save in persistent storage
+      await copyAsync({
+        from: fileInfo.uri,
+        to: `${documentDirectory}/my-recordings/recording-${Date.now()}.caf`,
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  };
   const updateScreenForSoundStatus = (status) => {
     if (status.isPlaying) {
       setIsPlaying(true);
@@ -209,17 +207,25 @@ export default function RecordAudio({ navigation }) {
         )}
       </View>
       {isPlaybackAllowed && !isLoading && currentSound.current && (
-        <View style={{ ...styles.row }}>
-          <Fontisto
-            style={{ marginRight: 15 }}
-            name={isPlaying ? "pause" : "play"}
-            onPress={onPlayPausePressed}
-            size={24}
-            color="black"
-            accessibilityLabel="Playback recorded audio button"
-          />
-          <Text>Play back your audio</Text>
-        </View>
+        <>
+          <View style={{ ...styles.row }}>
+            <Fontisto
+              style={{ marginRight: 15 }}
+              name={isPlaying ? "pause" : "play"}
+              onPress={onPlayPausePressed}
+              size={24}
+              color="black"
+              accessibilityLabel="Playback recorded audio button"
+            />
+            <Text>Play back your audio</Text>
+          </View>
+          <View style={styles.row}>
+            <Button
+              onPress={saveRecordingToDisk}
+              title="Save recording"
+            ></Button>
+          </View>
+        </>
       )}
     </View>
   );
@@ -227,7 +233,6 @@ export default function RecordAudio({ navigation }) {
 
 const styles = StyleSheet.create({
   row: {
-    width: "100%",
     display: "flex",
     flexDirection: "row",
     alignItems: "center",

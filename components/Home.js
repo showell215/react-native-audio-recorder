@@ -35,7 +35,7 @@ export default function HomeScreen({ navigation }) {
         opacity: isLoading ? 0.2 : 1.0,
       }}
     >
-      <Text>Drum Journal</Text>
+      <Text>Audio Recorder</Text>
       {isRecordingPermitted ? (
         <View>
           <Button
